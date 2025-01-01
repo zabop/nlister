@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OpenStreetMap Node Lister</title>
+    <script>
+      async function fetchNodeList() {
+        const wayId = document.getElementById("wayInput").value;
+        if (!wayId) {
+          alert("Please enter a valid Way ID.");
+          return;
+        }
+
+        const url = `https://www.openstreetmap.org/api/0.6/way/${wayId}`;
+
+        try {
+          const response = await fetch(url);
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          // Get XML data as text
+          const xmlData = await response.text();
+
+          const numbers = Array.from(
+            xmlData.matchAll(/<nd ref="(\d+)"/g),
+            (match) => match[1]
+          );
+
+          const nodeList = numbers.map((e) => `n${e}`).join(", ");
+
+          // Display the node list on the page
+          document.getElementById("nodeList").textContent = nodeList;
+        } catch (error) {
+          console.error("Error fetching or parsing data:", error);
+          document.getElementById("nodeList").textContent =
+            "An error occurred. Check the console for details.";
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <h1>OpenStreetMap Node Lister</h1>
+    <label for="wayInput">Enter Way ID:</label>
+    <input type="text" id="wayInput" placeholder="e.g., 1347818340" />
+    <button onclick="fetchNodeList()">Fetch Node List</button>
+    <p id="nodeList">Enter a Way ID and click Fetch Node List.</p>
+  </body>
+</html>
