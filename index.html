@@ -4,48 +4,100 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>OpenStreetMap Node Lister</title>
+    <style>
+      #nodeListContainer {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      #nodeList {
+        overflow-x: auto;
+        white-space: nowrap;
+        flex: 1;
+      }
+      .copy-icon {
+        cursor: pointer;
+        padding: 5px;
+        border: 1px solid #ccc;
+        background-color: #f9f9f9;
+        border-radius: 4px;
+        display: none; /* Initially hide the copy button */
+      }
+    </style>
     <script>
       async function fetchNodeList() {
-        const wayId = document.getElementById("wayInput").value;
-        if (!wayId) {
-          alert("Please enter a valid Way ID.");
+        const wayIds = document.getElementById("wayInput").value;
+        if (!wayIds) {
+          alert("Please enter one or more valid Way IDs.");
           return;
         }
 
-        const url = `https://www.openstreetmap.org/api/0.6/way/${wayId}`;
+        const wayIdArray = wayIds.split(",").map((id) => id.trim());
+        const allNodes = [];
 
-        try {
-          const response = await fetch(url);
+        for (const wayId of wayIdArray) {
+          if (!wayId) continue;
 
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+          const url = `https://www.openstreetmap.org/api/0.6/way/${wayId}`;
+
+          try {
+            const response = await fetch(url);
+
+            if (!response.ok) {
+              throw new Error(
+                `HTTP error for Way ID ${wayId}! status: ${response.status}`
+              );
+            }
+
+            // Get XML data as text
+            const xmlData = await response.text();
+
+            const numbers = Array.from(
+              xmlData.matchAll(/<nd ref="(\d+)"/g),
+              (match) => match[1]
+            );
+
+            const nodeList = numbers.map((e) => `n${e}`).join(", ");
+            allNodes.push(nodeList);
+          } catch (error) {
+            console.error(
+              `Error fetching or parsing data for Way ID ${wayId}:`,
+              error
+            );
+            allNodes.push(`An error occurred. Check the console for details.`);
           }
-
-          // Get XML data as text
-          const xmlData = await response.text();
-
-          const numbers = Array.from(
-            xmlData.matchAll(/<nd ref="(\d+)"/g),
-            (match) => match[1]
-          );
-
-          const nodeList = numbers.map((e) => `n${e}`).join(", ");
-
-          // Display the node list on the page
-          document.getElementById("nodeList").textContent = nodeList;
-        } catch (error) {
-          console.error("Error fetching or parsing data:", error);
-          document.getElementById("nodeList").textContent =
-            "An error occurred. Check the console for details.";
         }
+
+        // Display the node list on the page
+        document.getElementById("nodeList").textContent = allNodes.join(", ");
+
+        // Show the copy button if there is output
+        document.querySelector(".copy-icon").style.display =
+          allNodes.length > 0 ? "inline-block" : "none";
+      }
+
+      function copyToClipboard() {
+        const nodeListText = document.getElementById("nodeList").textContent;
+        navigator.clipboard
+          .writeText(nodeListText)
+          .catch((err) => alert("Failed to copy: " + err));
       }
     </script>
   </head>
   <body>
     <h1>OpenStreetMap Node Lister</h1>
-    <label for="wayInput">Enter Way ID:</label>
-    <input type="text" id="wayInput" placeholder="e.g., 1347818340" />
+    <label for="wayInput">Enter Way IDs (comma-separated):</label>
+    <input
+      type="text"
+      id="wayInput"
+      placeholder="e.g., 1347818340, 1234567890"
+    />
     <button onclick="fetchNodeList()">Fetch Node List</button>
-    <p id="nodeList">Enter a Way ID and click Fetch Node List.</p>
+    <div id="nodeListContainer">
+      <pre id="nodeList">
+Enter one or more Way IDs and click Fetch Node List.</pre
+      >
+      <button class="copy-icon" onclick="copyToClipboard()">📋 Copy</button>
+    </div>
   </body>
 </html>
